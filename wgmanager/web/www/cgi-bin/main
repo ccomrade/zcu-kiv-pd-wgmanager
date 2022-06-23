@@ -1,0 +1,71 @@
+#!/bin/sh
+
+# path to the web server root directory
+ROOT=$( dirname "$0" )"/../.."
+
+. "$ROOT/web.cfg"
+
+. "$ROOT/scripts/util.sh"
+
+init_session
+
+if ! send_request "{\"session\":\"$SESSION\"}" "$MASTER_SERVER_URL/api/user/get-devices"
+then
+	[ "$REQUEST_STATUS" = "invalid_session" ] && login_redirect
+
+	server_error
+fi
+
+USERNAME=$( echo "$REQUEST_RESULT" | jq -r '.username' )
+DEVICE_LIST=$( echo "$REQUEST_RESULT" | jq -r -c '.devices | sort_by(.name)[]' )
+
+[ -n "$USERNAME" ] || server_error
+
+create_page_content()
+{
+	local continue_param
+
+	continue_param=$( url_encode "$REQUEST_URI" )
+
+	echo "<!DOCTYPE html>"
+	echo "<html lang=\"en\">"
+	echo "<head>"
+	echo "  <meta charset=\"UTF-8\">"
+	echo "  <title>WireGuard VPN Manager</title>"
+	echo "</head>"
+	echo "<body>"
+
+	echo "  <h3>User: $USERNAME</h3>"
+
+	if [ -n "$DEVICE_LIST" ]
+	then
+		echo "  <h4>Your devices:</h4>"
+		echo "  <table>"
+
+		echo "$DEVICE_LIST" | while read -r DEVICE_INFO
+		do
+			NAME=$( echo "$DEVICE_INFO" | jq -r '.name' )
+			DESCRIPTION=$( echo "$DEVICE_INFO" | jq -r '.description' | base64 --decode )
+
+			echo "    <tr>"
+			echo "      <td><a href=\"remove-device/$NAME?continue=$continue_param\">X</a></td>"
+			echo "      <td><a href=\"get-device-config/$NAME?type=file\">CONFIG</a>"
+			echo "      <td><a href=\"get-device-config/$NAME?type=qrcode\" target=\"_blank\">QR</a>"
+			echo "      <td><b>$NAME</b></td>"
+			echo "      <td>$DESCRIPTION</td>"
+			echo "    </tr>"
+		done
+
+		echo "  </table>"
+	else
+		echo "  <p>You have no devices yet.</p>"
+	fi
+
+	echo "  <br>"
+	echo "  <a href=\"add-device?continue=$continue_param\">Add device</a>"
+
+	echo "</body>"
+	echo "</html>"
+}
+
+show_page

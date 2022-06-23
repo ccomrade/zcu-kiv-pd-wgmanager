@@ -1,0 +1,32 @@
+#!/bin/sh
+
+# path to the master server root directory
+ROOT=$( dirname "$0" )"/../../../.."
+
+. "$ROOT/scripts/util.sh"
+
+log_result()
+{
+	log_info "/api/user/login: $1 $REMOTE_ADDR:$REMOTE_PORT"
+}
+
+read -r REQUEST
+
+USERNAME=$( echo "$REQUEST" | jq -r '.username // empty' )
+PASSWORD=$( echo "$REQUEST" | jq -r '.password // empty' )  # encrypted password
+
+if [ -z "$USERNAME" ] || [ -z "$PASSWORD" ]
+then
+	log_result "Invalid request"
+	response_invalid_request
+	exit 1
+fi
+
+# acquire database lock and process the request
+if ! flock "$ROOT/db" "$ROOT/scripts/api-user-login.sh" "$USERNAME" "$PASSWORD"
+then
+	log_result "Failure"
+	exit 1
+fi
+
+log_result "Success"

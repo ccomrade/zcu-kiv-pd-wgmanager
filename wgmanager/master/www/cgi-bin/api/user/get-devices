@@ -1,0 +1,31 @@
+#!/bin/sh
+
+# path to the master server root directory
+ROOT=$( dirname "$0" )"/../../../.."
+
+. "$ROOT/scripts/util.sh"
+
+log_result()
+{
+	log_info "/api/user/get-devices: $1 $REMOTE_ADDR:$REMOTE_PORT"
+}
+
+read -r REQUEST
+
+SESSION=$( echo "$REQUEST" | jq -r '.session // empty' )
+
+if [ -z "$SESSION" ]
+then
+	log_result "Invalid request"
+	response_invalid_request
+	exit 1
+fi
+
+# acquire database lock and process the request
+if ! flock "$ROOT/db" "$ROOT/scripts/api-user-get-devices.sh" "$SESSION"
+then
+	log_result "Failure"
+	exit 1
+fi
+
+log_result "Success"

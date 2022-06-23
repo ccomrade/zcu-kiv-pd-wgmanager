@@ -1,0 +1,16 @@
+[Unit]
+Description=WireGuard Manager Gate Server
+After=network.target wgmanager-master.service
+
+[Service]
+Type=simple
+ProtectSystem=full
+ProtectHome=true
+EnvironmentFile=/var/lib/wgmanager/gate/gate.cfg
+ExecStartPre=/var/lib/wgmanager/gate/wireguard-start.sh
+ExecStart=/bin/busybox httpd -f -v -p $HTTP_LISTEN_PORT -h /var/lib/wgmanager/gate/www
+ExecStartPost=/var/lib/wgmanager/gate/notify-master.sh
+ExecStopPost=/var/lib/wgmanager/gate/wireguard-stop.sh
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,13 @@
+[Unit]
+Description=WireGuard Manager Master Server
+After=network.target
+
+[Service]
+Type=simple
+User=wgmanager
+Group=wgmanager
+EnvironmentFile=/var/lib/wgmanager/master/master.cfg
+ExecStart=/bin/busybox httpd -f -v -p $HTTP_LISTEN_PORT -h /var/lib/wgmanager/master/www
+
+[Install]
+WantedBy=multi-user.target

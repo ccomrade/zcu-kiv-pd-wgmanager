@@ -1,0 +1,59 @@
+#!/bin/sh
+
+# path to the web server root directory
+ROOT=$( dirname "$0" )"/../.."
+
+. "$ROOT/web.cfg"
+
+. "$ROOT/scripts/util.sh"
+
+read -r POST_QUERY_STRING
+
+validate_query_string "$QUERY_STRING" && validate_query_string "$POST_QUERY_STRING" || invalid_request
+
+DEVICE=$( echo "$PATH_INFO" | cut -d '/' -f 2 )
+CONFIRMED=$( query_string_get_value "$POST_QUERY_STRING" "confirmed" )
+CONTINUE=$( query_string_get_value "$QUERY_STRING" "continue" )
+
+[ -n "$DEVICE" ] || invalid_request
+
+init_session
+
+check_name "$DEVICE" || show_error "Invalid device name!"
+
+if [ "$CONFIRMED" = "true" ]
+then
+	if ! send_request "{\"session\":\"$SESSION\",\"device\":{\"name\":\"$DEVICE\"}}" "$MASTER_SERVER_URL/api/device/remove"
+	then
+		[ "$REQUEST_STATUS" = "invalid_session" ] && login_redirect
+		[ "$REQUEST_STATUS" = "invalid_name"    ] && show_error "Invalid device name!"
+		[ "$REQUEST_STATUS" = "unknown_device"  ] && show_error "Device '$DEVICE' does not exist!"
+
+		server_error
+	fi
+
+	[ -z "$CONTINUE" ] && CONTINUE="main"
+
+	http_redirect "$CONTINUE"
+fi
+
+create_page_content()
+{
+	echo "<!DOCTYPE html>"
+	echo "<html lang=\"en\">"
+	echo "<head>"
+	echo "  <meta charset=\"UTF-8\">"
+	echo "  <title>WireGuard VPN Manager</title>"
+	echo "</head>"
+	echo "<body>"
+	echo "  <h2>Remove device '$DEVICE'</h2>"
+	echo "  <form action=\"$REQUEST_URI\" method=\"post\">"
+	echo "    <input type=\"checkbox\" name=\"confirmed\" value=\"true\"> I really want to remove the device.<br>"
+	echo "    <br>"
+	echo "    <input type=\"submit\" value=\"Remove device\">"
+	echo "  </form>"
+	echo "</body>"
+	echo "</html>"
+}
+
+show_page

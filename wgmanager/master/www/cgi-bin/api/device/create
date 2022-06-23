@@ -1,0 +1,33 @@
+#!/bin/sh
+
+# path to the master server root directory
+ROOT=$( dirname "$0" )"/../../../.."
+
+. "$ROOT/scripts/util.sh"
+
+log_result()
+{
+	log_info "/api/device/create: $1 $REMOTE_ADDR:$REMOTE_PORT"
+}
+
+read -r REQUEST
+
+SESSION=$(     echo "$REQUEST" | jq -r '.session // empty' )
+DEVICE=$(      echo "$REQUEST" | jq -r '.device.name // empty' )
+DESCRIPTION=$( echo "$REQUEST" | jq -r '.device.description // empty' )
+
+if [ -z "$SESSION" ] || [ -z "$DEVICE" ]
+then
+	log_result "Invalid request"
+	response_invalid_request
+	exit 1
+fi
+
+# acquire database lock and process the request
+if ! flock "$ROOT/db" "$ROOT/scripts/api-device-create.sh" "$SESSION" "$DEVICE" "$DESCRIPTION"
+then
+	log_result "Failure"
+	exit 1
+fi
+
+log_result "Success"

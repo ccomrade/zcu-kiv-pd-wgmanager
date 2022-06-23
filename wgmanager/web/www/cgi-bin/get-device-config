@@ -1,0 +1,51 @@
+#!/bin/sh
+
+# path to the web server root directory
+ROOT=$( dirname "$0" )"/../.."
+
+. "$ROOT/web.cfg"
+
+. "$ROOT/scripts/util.sh"
+
+validate_query_string "$QUERY_STRING" || invalid_request
+
+DEVICE=$( echo "$PATH_INFO" | cut -d '/' -f 2 )
+TYPE=$( query_string_get_value "$QUERY_STRING" "type" )
+
+[ -n "$DEVICE" ] && [ -z "$TYPE" -o "$TYPE" = "file" -o "$TYPE" = "qrcode" ] || invalid_request
+
+init_session
+
+check_name "$DEVICE" || show_error "Invalid device name!"
+
+if ! send_request "{\"session\":\"$SESSION\",\"device\":{\"name\":\"$DEVICE\"}}" "$MASTER_SERVER_URL/api/device/get-config"
+then
+	[ "$REQUEST_STATUS" = "invalid_session" ] && login_redirect
+	[ "$REQUEST_STATUS" = "invalid_name"    ] && show_error "Invalid device name!"
+	[ "$REQUEST_STATUS" = "unknown_device"  ] && show_error "Device '$DEVICE' does not exist!"
+
+	server_error
+fi
+
+CONTENT=$( echo "$REQUEST_RESULT" | jq -r '.config' )
+
+[ -n "$CONTENT" ] || server_error
+
+response_begin
+
+if [ "$TYPE" = "qrcode" ]
+then
+	CONTENT=$( echo "$CONTENT" | base64 --decode | qrencode -t PNG -o - | base64 -w 0 )
+
+	cgi_echo "Content-Type: image/png"
+else
+	cgi_echo "Content-Disposition: attachment; filename=\"$DEVICE.conf\""
+	cgi_echo "Content-Type: application/octet-stream"
+fi
+
+CONTENT_LENGTH=$( echo "$CONTENT" | base64 --decode | wc -c )
+
+cgi_echo "Content-Length: $CONTENT_LENGTH"
+cgi_echo
+
+echo "$CONTENT" | base64 --decode

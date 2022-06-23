@@ -1,0 +1,38 @@
+#!/bin/sh
+
+# path to the gate server root directory
+ROOT=$( dirname "$0" )"/../../../.."
+
+. "$ROOT/gate.cfg"
+
+. "$ROOT/scripts/util.sh"
+. "$ROOT/scripts/wireguard.sh"
+. "$ROOT/callbacks.sh"
+
+read -r REQUEST
+
+USERNAME=$(     echo "$REQUEST" | jq -r '.user // empty' )
+DEVICE=$(       echo "$REQUEST" | jq -r '.device // empty' )
+PUBLIC_KEY=$(   echo "$REQUEST" | jq -r '.key // empty' )
+ADDRESS_IPV4=$( echo "$REQUEST" | jq -r '.address.ipv4 // empty' )
+ADDRESS_IPV6=$( echo "$REQUEST" | jq -r '.address.ipv6 // empty' )
+
+if [ -z "$USERNAME" ] || [ -z "$DEVICE" ] || [ -z "$PUBLIC_KEY" ] || [ -z "$ADDRESS_IPV4" -a -z "$ADDRESS_IPV6" ]
+then
+	log_error "/api/client/remove: Invalid request from $REMOTE_ADDR:$REMOTE_PORT"
+	response_invalid_request
+	exit 1
+fi
+
+if ! wireguard_remove_client "$PUBLIC_KEY"
+then
+	log_error "Failed to remove client $USERNAME:$DEVICE"
+	response_server_error
+	exit 1
+fi
+
+log_info "Removed client $USERNAME:$DEVICE - IPv4 address: $ADDRESS_IPV4 | IPv6 address: $ADDRESS_IPV6 | Public key: $PUBLIC_KEY"
+
+response_ok
+
+( OnClientRemoved "$USERNAME" "$DEVICE" "$PUBLIC_KEY" "$ADDRESS_IPV4" "$ADDRESS_IPV6" )
