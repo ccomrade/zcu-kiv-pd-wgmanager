@@ -1,34 +1,36 @@
 # zcu-kiv-pd-wgmanager
 
-TODO
+A simple multi-user [WireGuard](https://en.wikipedia.org/wiki/WireGuard) VPN management tool with a basic web UI.
 
---------------------------------------------------------------------------------
+Implemented as a distributed system using only existing simple programs chained together with POSIX shell scripts
+executed via [CGI](https://en.wikipedia.org/wiki/Common_Gateway_Interface). The web UI uses only plain HTML.
 
-![WebUI - Login](pictures/webui_login.png)
+Created as a school project. Primarily meant for learning shell scripting and web basics rather than practical use.
+However, it is fully functional and tested in a real use case.
 
---------------------------------------------------------------------------------
+## Screenshots
 
-![WebUI - Main](pictures/webui_main.png)
+Login page:
 
---------------------------------------------------------------------------------
+> ![WebUI - Login](pictures/webui_login.png)
 
-![WebUI - Remove device](pictures/webui_remove_device.png)
+Main page:
 
---------------------------------------------------------------------------------
+> ![WebUI - Main](pictures/webui_main.png)
 
-TODO
+Device removal page:
+
+> ![WebUI - Remove device](pictures/webui_remove_device.png)
 
 ## Architecture
 
 ![Architecture](pictures/architecture.png)
 
-TODO
-
 ## Installation
 
 ### Dependencies
 
-| Tool              | Gate | Master | Web |
+| Program           | Gate | Master | Web |
 | :---------------: | :--: | :----: | :-: |
 | `base64`          |      | X      | X   |
 | `busybox` (httpd) | X    | X      |     |
@@ -148,11 +150,11 @@ Copy the included `wgmanager-gate.service` and `wgmanager-master.service` file t
 # systemctl start wgmanager-gate
 ```
 
-For web server, you can use simple httpd from `busybox` as well:
+Web server can use the simple httpd from `busybox` as well:
 ```
 $ busybox httpd -f -v -p 80 -h /var/lib/wgmanager/web/www
 ```
 
-However, you can also use the existing big web server, such as Apache, nginx, lighttpd and so on. To do it, set the
+However, you can also use the existing big web server, such as Apache, nginx, lighttpd and so on. To do this, set the
 `/var/lib/wgmanager/web/www` as a document root and activate the CGI module for the `cgi-bin` subdirectory. Note that
 all non-standard modifications of CGI variables, such as automatic conversion of `%2F` to `/`, must be disabled.
